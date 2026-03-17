@@ -219,7 +219,7 @@ const sliderTrack = document.getElementById('sliderTrack');
 const timescaleSlider = document.getElementById('timescaleSlider');
 const timescaleLabel = document.getElementById('timescaleLabel');
 
-let timescale = 1;
+let timescale = 0.2;
 
 freqSlider.max = Math.round(maxFreq);
 freqSlider.value = Math.round(sim.fundamental);
