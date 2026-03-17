@@ -156,6 +156,85 @@ class StringVisualizer {
         const xScale = plotWidth / this.sim.L;
         const yCenter = this.height / 2;
 
+        // Build node/antinode positions for harmonics 1-6
+        const markers = [];
+        const ordinal = ['', '1st', '2nd', '3rd', '4th', '5th', '6th'];
+
+        for (let n = 1; n <= 6; n++) {
+            // Nodes at k/n (skip endpoints 0 and 1)
+            for (let k = 1; k < n; k++) {
+                markers.push({ pos: k / n, type: 'node', harmonic: n });
+            }
+            // Antinodes at (2k-1)/(2n)
+            for (let k = 1; k <= n; k++) {
+                markers.push({ pos: (2 * k - 1) / (2 * n), type: 'antinode', harmonic: n });
+            }
+        }
+
+        const forcingNormalized = this.sim.forcingX0 / this.sim.L;
+        const fadeDistance = 0.08;
+
+        // Group markers by position (within tolerance)
+        const groups = [];
+        const tolerance = 0.001;
+
+        for (const marker of markers) {
+            const distance = Math.abs(forcingNormalized - marker.pos);
+            const opacity = Math.max(0, 1 - distance / fadeDistance) * 0.6;
+            if (opacity > 0.01) {
+                // Find existing group at this position
+                let group = groups.find(g => Math.abs(g.pos - marker.pos) < tolerance);
+                if (!group) {
+                    group = { pos: marker.pos, items: [], opacity, distance };
+                    groups.push(group);
+                }
+                group.items.push({ type: marker.type, harmonic: marker.harmonic });
+            }
+        }
+
+        // Sort groups by distance - closest first
+        groups.sort((a, b) => a.distance - b.distance);
+
+        // Track occupied text regions to prevent overlap
+        const occupiedRegions = [];
+        const textWidth = 120;
+
+        for (const group of groups) {
+            const x = this.padding + group.pos * this.sim.L * xScale;
+
+            // Draw line for all visible groups
+            ctx.strokeStyle = `rgba(255, 255, 255, ${group.opacity})`;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, this.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Check if text would overlap with existing labels
+            const textLeft = x - textWidth / 2;
+            const textRight = x + textWidth / 2;
+            const overlaps = occupiedRegions.some(r => !(textRight < r.left || textLeft > r.right));
+
+            if (!overlaps) {
+                // Mark this region as occupied
+                occupiedRegions.push({ left: textLeft, right: textRight });
+
+                // Draw stacked labels
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+
+                let yOffset = 18;
+                for (const item of group.items) {
+                    const color = item.type === 'node' ? '100, 200, 255' : '255, 180, 100';
+                    ctx.fillStyle = `rgba(${color}, ${group.opacity})`;
+                    ctx.fillText(`${item.type} - ${ordinal[item.harmonic]}`, x, yOffset);
+                    yOffset += 14;
+                }
+            }
+        }
+
         // Draw forcing position indicator
         const forcingX = this.padding + this.sim.forcingX0 * xScale;
         const forcingIdx = Math.floor((this.sim.forcingX0 / this.sim.L) * (this.sim.nx - 1));
