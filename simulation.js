@@ -220,6 +220,7 @@ const timescaleSlider = document.getElementById('timescaleSlider');
 const timescaleLabel = document.getElementById('timescaleLabel');
 
 let timescale = 0.2;
+timescaleSlider.value = -0.7;
 
 freqSlider.max = Math.round(maxFreq);
 freqSlider.value = Math.round(sim.fundamental);
