@@ -286,17 +286,95 @@ class StringVisualizer {
     }
 }
 
+class AudioEngine {
+    constructor(simulation) {
+        this.sim = simulation;
+        this.audioCtx = null;
+        this.processor = null;
+        this.gainNode = null;
+        this.isPlaying = false;
+        this.samplePositions = [0.14, 0.23, 0.31, 0.39, 0.46];
+        this.sampleIndices = null;
+    }
+
+    start() {
+        if (this.isPlaying) return;
+
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        const audioSamplePeriod = 1 / this.audioCtx.sampleRate;
+        this.stepsPerSample = Math.max(1, Math.round(audioSamplePeriod / this.sim.dt));
+        this.sampleIndices = this.samplePositions.map(p => Math.floor(p * (this.sim.nx - 1)));
+
+        this.gainNode = this.audioCtx.createGain();
+        this.gainNode.gain.value = 0.4;
+        this.gainNode.connect(this.audioCtx.destination);
+
+        this.processor = this.audioCtx.createScriptProcessor(512, 0, 1);
+        this.processor.onaudioprocess = (e) => this.processAudio(e);
+        this.processor.connect(this.gainNode);
+
+        this.isPlaying = true;
+    }
+
+    stop() {
+        if (!this.isPlaying) return;
+
+        if (this.processor) {
+            this.processor.disconnect();
+            this.processor = null;
+        }
+        if (this.gainNode) {
+            this.gainNode.disconnect();
+            this.gainNode = null;
+        }
+        if (this.audioCtx) {
+            this.audioCtx.close();
+            this.audioCtx = null;
+        }
+
+        this.isPlaying = false;
+    }
+
+    processAudio(e) {
+        const output = e.outputBuffer.getChannelData(0);
+        const numPositions = this.sampleIndices.length;
+
+        for (let i = 0; i < output.length; i++) {
+            this.sim.stepN(this.stepsPerSample);
+
+            let sum = 0;
+            for (let j = 0; j < numPositions; j++) {
+                sum += this.sim.u[this.sampleIndices[j]];
+            }
+
+            output[i] = Math.max(-1, Math.min(1, (sum / numPositions) * 60));
+        }
+    }
+
+    toggle() {
+        if (this.isPlaying) {
+            this.stop();
+        } else {
+            this.start();
+        }
+        return this.isPlaying;
+    }
+}
+
 const sim = new StringSimulation();
 const numHarmonics = 6;
 const maxFreq = (numHarmonics + 0.5) * sim.fundamental;
 
 const visualizer = new StringVisualizer('stringCanvas', sim);
+const audioEngine = new AudioEngine(sim);
 
 const freqSlider = document.getElementById('freqSlider');
 const freqLabel = document.getElementById('freqLabel');
 const sliderTrack = document.getElementById('sliderTrack');
 const timescaleSlider = document.getElementById('timescaleSlider');
 const timescaleLabel = document.getElementById('timescaleLabel');
+const soundToggle = document.getElementById('soundToggle');
 
 let timescale = 0.2;
 timescaleSlider.value = -0.7;
@@ -335,9 +413,17 @@ timescaleSlider.addEventListener('input', (e) => {
     }
 });
 
+soundToggle.addEventListener('click', () => {
+    const isPlaying = audioEngine.toggle();
+    soundToggle.textContent = isPlaying ? 'Sound On' : 'Sound Off';
+    soundToggle.classList.toggle('active', isPlaying);
+});
+
 function animate() {
-    const steps = Math.max(1, Math.round(100 * timescale));
-    sim.stepN(steps);
+    if (!audioEngine.isPlaying) {
+        const steps = Math.max(1, Math.round(100 * timescale));
+        sim.stepN(steps);
+    }
     visualizer.draw();
     requestAnimationFrame(animate);
 }

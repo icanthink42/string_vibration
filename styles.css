@@ -166,3 +166,29 @@ input[type="range"]::-moz-range-track {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.6);
 }
+
+.sound-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    font-family: sans-serif;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sound-toggle:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.sound-toggle.active {
+    background: rgba(77, 168, 218, 0.3);
+    color: #4da8da;
+    border-color: #4da8da;
+}
