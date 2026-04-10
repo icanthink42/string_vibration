@@ -427,6 +427,22 @@ soundToggle.addEventListener('click', () => {
     }
     soundToggle.textContent = isPlaying ? 'Sound On' : 'Sound Off';
     soundToggle.classList.toggle('active', isPlaying);
+
+    // Hide timescale slider when sound is on (runs at 1.0x for audio)
+    if (isPlaying) {
+        timescaleSlider.style.display = 'none';
+        timescaleLabel.textContent = '1.0x';
+    } else {
+        timescaleSlider.style.display = '';
+        // Restore the label to match current slider value
+        if (timescale >= 0.1) {
+            timescaleLabel.textContent = `${timescale.toFixed(1)}x`;
+        } else if (timescale >= 0.01) {
+            timescaleLabel.textContent = `${timescale.toFixed(2)}x`;
+        } else {
+            timescaleLabel.textContent = `${timescale.toFixed(3)}x`;
+        }
+    }
 });
 
 // Mode switching
