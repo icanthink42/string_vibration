@@ -515,6 +515,7 @@ function setMode(mode) {
         // Create piano simulation if needed
         if (!pianoSim) {
             pianoSim = new StringSimulation(pianoStringParams);
+            pianoSim.forcingFreq = 0;  // Start silent until a key is pressed
             pianoAudioEngine = new AudioEngine(pianoSim);
             noteHarmonics = calculateNoteHarmonics(pianoSim.fundamental);
 
