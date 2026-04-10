@@ -196,8 +196,7 @@ input[type="range"]::-moz-range-track {
 .mode-toggle {
     position: absolute;
     top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 150px;
     display: flex;
     gap: 0;
     background: rgba(255, 255, 255, 0.1);
