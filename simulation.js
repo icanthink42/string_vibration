@@ -451,27 +451,33 @@ const pianoStringParams = {
 let pianoSim = null;
 let pianoAudioEngine = null;
 
+// Calculate frequency for a note using equal temperament (A4 = 440 Hz)
+function noteToFrequency(note) {
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const match = note.match(/^([A-G]#?)(\d)$/);
+    if (!match) return 440;
+
+    const [, name, octaveStr] = match;
+    const octave = parseInt(octaveStr);
+    const semitone = noteNames.indexOf(name);
+
+    // A4 is the 49th key on a piano (if C0 is key 1)
+    // Semitones from A4 = (octave - 4) * 12 + (semitone - 9)
+    const semitonesFromA4 = (octave - 4) * 12 + (semitone - 9);
+
+    return 440 * Math.pow(2, semitonesFromA4 / 12);
+}
+
 // Calculate which harmonic best matches each note frequency
 function calculateNoteHarmonics(fundamental) {
-    const notes = [
-        { note: 'C4', freq: 261.63 },
-        { note: 'C#4', freq: 277.18 },
-        { note: 'D4', freq: 293.66 },
-        { note: 'D#4', freq: 311.13 },
-        { note: 'E4', freq: 329.63 },
-        { note: 'F4', freq: 349.23 },
-        { note: 'F#4', freq: 369.99 },
-        { note: 'G4', freq: 392.00 },
-        { note: 'G#4', freq: 415.30 },
-        { note: 'A4', freq: 440.00 },
-        { note: 'A#4', freq: 466.16 },
-        { note: 'B4', freq: 493.88 }
-    ];
-
     const harmonics = {};
-    for (const { note, freq } of notes) {
+
+    pianoKeys.forEach(key => {
+        const note = key.dataset.note;
+        const freq = noteToFrequency(note);
         const n = Math.round(freq / fundamental);
         const actualFreq = n * fundamental;
+
         harmonics[note] = {
             harmonic: n,
             targetFreq: freq,
@@ -479,7 +485,8 @@ function calculateNoteHarmonics(fundamental) {
             // Antinode position: first antinode at L/(2n), normalized to 0-1
             antinodePos: 1 / (2 * n)
         };
-    }
+    });
+
     return harmonics;
 }
 
