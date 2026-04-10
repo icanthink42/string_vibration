@@ -564,6 +564,11 @@ function playNote(key) {
 
 function stopNote(key) {
     key.classList.remove('active');
+    // Stop forcing when key is released
+    if (pianoSim) {
+        pianoSim.forcingFreq = 0;
+        pianoLabel.textContent = 'Press a key';
+    }
 }
 
 // Mouse/touch events for piano keys
