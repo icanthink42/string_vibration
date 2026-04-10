@@ -16,10 +16,33 @@
 
     <button id="soundToggle" class="sound-toggle">Sound Off</button>
 
+    <div class="mode-toggle">
+        <button id="normalMode" class="mode-btn active">Normal</button>
+        <button id="pianoMode" class="mode-btn">Piano</button>
+    </div>
+
     <div class="slider-container">
         <div class="slider-track" id="sliderTrack"></div>
         <input type="range" id="freqSlider" min="0" max="1500" value="243">
         <div class="freq-label" id="freqLabel">243 Hz</div>
+    </div>
+
+    <div class="piano-container" id="pianoContainer" style="display: none;">
+        <div class="piano">
+            <div class="key white" data-note="C4" data-freq="261.63" data-key="a"><span>A</span></div>
+            <div class="key black" data-note="C#4" data-freq="277.18" data-key="w"><span>W</span></div>
+            <div class="key white" data-note="D4" data-freq="293.66" data-key="s"><span>S</span></div>
+            <div class="key black" data-note="D#4" data-freq="311.13" data-key="e"><span>E</span></div>
+            <div class="key white" data-note="E4" data-freq="329.63" data-key="d"><span>D</span></div>
+            <div class="key white" data-note="F4" data-freq="349.23" data-key="f"><span>F</span></div>
+            <div class="key black" data-note="F#4" data-freq="369.99" data-key="t"><span>T</span></div>
+            <div class="key white" data-note="G4" data-freq="392.00" data-key="g"><span>G</span></div>
+            <div class="key black" data-note="G#4" data-freq="415.30" data-key="y"><span>Y</span></div>
+            <div class="key white" data-note="A4" data-freq="440.00" data-key="h"><span>H</span></div>
+            <div class="key black" data-note="A#4" data-freq="466.16" data-key="u"><span>U</span></div>
+            <div class="key white" data-note="B4" data-freq="493.88" data-key="j"><span>J</span></div>
+        </div>
+        <div class="piano-label" id="pianoLabel">Press a key</div>
     </div>
 
     <script src="simulation.js"></script>

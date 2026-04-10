@@ -105,6 +105,11 @@ class StringVisualizer {
         this.canvas.addEventListener('touchend', () => this.onPointerUp());
     }
 
+    setSimulation(simulation) {
+        this.sim = simulation;
+        this.maxDisplacement = 0.001;  // Reset scale for new simulation
+    }
+
     onPointerDown(e) {
         this.isDragging = true;
         this.updateForcingPosition(e);
@@ -414,15 +419,187 @@ timescaleSlider.addEventListener('input', (e) => {
 });
 
 soundToggle.addEventListener('click', () => {
-    const isPlaying = audioEngine.toggle();
+    let isPlaying;
+    if (currentMode === 'piano' && pianoAudioEngine) {
+        isPlaying = pianoAudioEngine.toggle();
+    } else {
+        isPlaying = audioEngine.toggle();
+    }
     soundToggle.textContent = isPlaying ? 'Sound On' : 'Sound Off';
     soundToggle.classList.toggle('active', isPlaying);
 });
 
+// Mode switching
+const normalModeBtn = document.getElementById('normalMode');
+const pianoModeBtn = document.getElementById('pianoMode');
+const sliderContainer = document.querySelector('.slider-container');
+const pianoContainer = document.getElementById('pianoContainer');
+const pianoLabel = document.getElementById('pianoLabel');
+const pianoKeys = document.querySelectorAll('.piano .key');
+
+let currentMode = 'normal';
+
+// Piano mode uses a lower fundamental so harmonics can map to notes
+// With tension=4, density=0.01: c=20 m/s, f1 = 20/(2*0.65) ≈ 15.38 Hz
+const pianoStringParams = {
+    tension: 4.0,
+    linearDensity: 0.01,
+    damping: 5.0  // Lower damping so harmonics ring longer
+};
+
+// Piano simulation instance (created when entering piano mode)
+let pianoSim = null;
+let pianoAudioEngine = null;
+
+// Calculate which harmonic best matches each note frequency
+function calculateNoteHarmonics(fundamental) {
+    const notes = [
+        { note: 'C4', freq: 261.63 },
+        { note: 'C#4', freq: 277.18 },
+        { note: 'D4', freq: 293.66 },
+        { note: 'D#4', freq: 311.13 },
+        { note: 'E4', freq: 329.63 },
+        { note: 'F4', freq: 349.23 },
+        { note: 'F#4', freq: 369.99 },
+        { note: 'G4', freq: 392.00 },
+        { note: 'G#4', freq: 415.30 },
+        { note: 'A4', freq: 440.00 },
+        { note: 'A#4', freq: 466.16 },
+        { note: 'B4', freq: 493.88 }
+    ];
+
+    const harmonics = {};
+    for (const { note, freq } of notes) {
+        const n = Math.round(freq / fundamental);
+        const actualFreq = n * fundamental;
+        harmonics[note] = {
+            harmonic: n,
+            targetFreq: freq,
+            actualFreq: actualFreq,
+            // Antinode position: first antinode at L/(2n), normalized to 0-1
+            antinodePos: 1 / (2 * n)
+        };
+    }
+    return harmonics;
+}
+
+let noteHarmonics = {};
+
+function setMode(mode) {
+    currentMode = mode;
+
+    // Stop any playing audio
+    if (audioEngine.isPlaying) {
+        audioEngine.toggle();
+        soundToggle.textContent = 'Sound Off';
+        soundToggle.classList.remove('active');
+    }
+    if (pianoAudioEngine && pianoAudioEngine.isPlaying) {
+        pianoAudioEngine.toggle();
+        soundToggle.textContent = 'Sound Off';
+        soundToggle.classList.remove('active');
+    }
+
+    if (mode === 'normal') {
+        normalModeBtn.classList.add('active');
+        pianoModeBtn.classList.remove('active');
+        sliderContainer.style.display = '';
+        pianoContainer.style.display = 'none';
+        visualizer.setSimulation(sim);
+    } else {
+        normalModeBtn.classList.remove('active');
+        pianoModeBtn.classList.add('active');
+        sliderContainer.style.display = 'none';
+        pianoContainer.style.display = 'flex';
+
+        // Create piano simulation if needed
+        if (!pianoSim) {
+            pianoSim = new StringSimulation(pianoStringParams);
+            pianoAudioEngine = new AudioEngine(pianoSim);
+            noteHarmonics = calculateNoteHarmonics(pianoSim.fundamental);
+
+            // Update piano key data attributes with actual harmonic info
+            pianoKeys.forEach(key => {
+                const note = key.dataset.note;
+                if (noteHarmonics[note]) {
+                    const info = noteHarmonics[note];
+                    key.dataset.harmonic = info.harmonic;
+                    key.dataset.actualFreq = info.actualFreq;
+                    key.dataset.antinodePos = info.antinodePos;
+                }
+            });
+        }
+
+        visualizer.setSimulation(pianoSim);
+    }
+}
+
+normalModeBtn.addEventListener('click', () => setMode('normal'));
+pianoModeBtn.addEventListener('click', () => setMode('piano'));
+
+// Piano key handling - now uses harmonics!
+function playNote(key) {
+    const note = key.dataset.note;
+    const info = noteHarmonics[note];
+
+    if (!info || !pianoSim) return;
+
+    // Set forcing position to antinode of this harmonic
+    pianoSim.forcingX0 = info.antinodePos * pianoSim.L;
+
+    // Set forcing frequency to the harmonic frequency
+    pianoSim.forcingFreq = info.actualFreq;
+
+    pianoLabel.textContent = `${note} (n=${info.harmonic}) - ${info.actualFreq.toFixed(1)} Hz`;
+    key.classList.add('active');
+}
+
+function stopNote(key) {
+    key.classList.remove('active');
+}
+
+// Mouse/touch events for piano keys
+pianoKeys.forEach(key => {
+    key.addEventListener('mousedown', () => playNote(key));
+    key.addEventListener('mouseup', () => stopNote(key));
+    key.addEventListener('mouseleave', () => stopNote(key));
+
+    key.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        playNote(key);
+    });
+    key.addEventListener('touchend', () => stopNote(key));
+});
+
+// Keyboard input for piano
+const keyMap = {};
+pianoKeys.forEach(key => {
+    keyMap[key.dataset.key] = key;
+});
+
+document.addEventListener('keydown', (e) => {
+    if (currentMode !== 'piano') return;
+    const key = keyMap[e.key.toLowerCase()];
+    if (key && !e.repeat) {
+        playNote(key);
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (currentMode !== 'piano') return;
+    const key = keyMap[e.key.toLowerCase()];
+    if (key) {
+        stopNote(key);
+    }
+});
+
 function animate() {
-    if (!audioEngine.isPlaying) {
+    const currentSim = (currentMode === 'piano' && pianoSim) ? pianoSim : sim;
+    const currentAudio = (currentMode === 'piano' && pianoAudioEngine) ? pianoAudioEngine : audioEngine;
+
+    if (!currentAudio.isPlaying) {
         const steps = Math.max(1, Math.round(100 * timescale));
-        sim.stepN(steps);
+        currentSim.stepN(steps);
     }
     visualizer.draw();
     requestAnimationFrame(animate);
