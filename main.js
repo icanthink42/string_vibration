@@ -118,16 +118,42 @@ function setMode(mode) {
 normalModeBtn.addEventListener('click', () => setMode('normal'));
 pianoModeBtn.addEventListener('click', () => setMode('piano'));
 
+let isMouseDownOnPiano = false;
+
 pianoKeys.forEach(key => {
-    key.addEventListener('mousedown', () => playNote(key, pianoLabelEl));
-    key.addEventListener('mouseup', () => stopNote(key, pianoLabelEl));
-    key.addEventListener('mouseleave', () => stopNote(key, pianoLabelEl));
+    key.addEventListener('mousedown', () => {
+        isMouseDownOnPiano = true;
+        playNote(key, pianoLabelEl);
+    });
+
+    key.addEventListener('mouseenter', () => {
+        if (isMouseDownOnPiano) {
+            playNote(key, pianoLabelEl);
+        }
+    });
+
+    key.addEventListener('mouseleave', () => {
+        if (isMouseDownOnPiano) {
+            stopNote(key, pianoLabelEl);
+        }
+    });
 
     key.addEventListener('touchstart', (e) => {
         e.preventDefault();
         playNote(key, pianoLabelEl);
     });
     key.addEventListener('touchend', () => stopNote(key, pianoLabelEl));
+});
+
+document.addEventListener('mouseup', () => {
+    if (isMouseDownOnPiano) {
+        isMouseDownOnPiano = false;
+        pianoKeys.forEach(key => {
+            if (key.classList.contains('active')) {
+                stopNote(key, pianoLabelEl);
+            }
+        });
+    }
 });
 
 const keyMap = {};
