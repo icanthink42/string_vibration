@@ -298,8 +298,6 @@ class AudioEngine {
         this.processor = null;
         this.gainNode = null;
         this.isPlaying = false;
-        this.samplePositions = [0.14, 0.23, 0.31, 0.39, 0.46];
-        this.sampleIndices = null;
     }
 
     start() {
@@ -309,7 +307,6 @@ class AudioEngine {
 
         const audioSamplePeriod = 1 / this.audioCtx.sampleRate;
         this.stepsPerSample = Math.max(1, Math.round(audioSamplePeriod / this.sim.dt));
-        this.sampleIndices = this.samplePositions.map(p => Math.floor(p * (this.sim.nx - 1)));
 
         this.gainNode = this.audioCtx.createGain();
         this.gainNode.gain.value = 0.4;
@@ -343,17 +340,21 @@ class AudioEngine {
 
     processAudio(e) {
         const output = e.outputBuffer.getChannelData(0);
-        const numPositions = this.sampleIndices.length;
+        const nx = this.sim.nx;
 
         for (let i = 0; i < output.length; i++) {
             this.sim.stepN(this.stepsPerSample);
 
+            // Integrate over the whole string (trapezoidal rule)
             let sum = 0;
-            for (let j = 0; j < numPositions; j++) {
-                sum += this.sim.u[this.sampleIndices[j]];
+            for (let j = 1; j < nx - 1; j++) {
+                sum += this.sim.u[j];
             }
+            // Add half of endpoints (they're always 0 for fixed boundary, but for correctness)
+            sum += 0.5 * (this.sim.u[0] + this.sim.u[nx - 1]);
 
-            output[i] = Math.max(-1, Math.min(1, (sum / numPositions) * 60));
+            // Normalize by number of points and scale for audio
+            output[i] = Math.max(-1, Math.min(1, (sum / nx) * 120));
         }
     }
 
@@ -561,6 +562,11 @@ function setMode(mode) {
 normalModeBtn.addEventListener('click', () => setMode('normal'));
 pianoModeBtn.addEventListener('click', () => setMode('piano'));
 
+// Base harmonic for scaling (C4 uses ~17th harmonic)
+const baseHarmonic = 17;
+const baseAmplitude = 30;
+const baseWidth = 0.03;  // Base forcing width as fraction of L
+
 // Piano key handling - now uses harmonics!
 function playNote(key) {
     const note = key.dataset.note;
@@ -573,6 +579,9 @@ function playNote(key) {
 
     // Set forcing frequency to the harmonic frequency
     pianoSim.forcingFreq = info.actualFreq;
+
+    pianoSim.forcingWidth = (baseWidth * baseHarmonic / info.harmonic) * pianoSim.L;
+    pianoSim.forcingAmplitude = baseAmplitude * Math.pow(info.harmonic / baseHarmonic, 2);
 
     pianoLabel.textContent = `${note} (n=${info.harmonic}) - ${info.actualFreq.toFixed(1)} Hz`;
     key.classList.add('active');
