@@ -3,20 +3,19 @@ const numHarmonics = 6;
 const maxFreq = (numHarmonics + 0.5) * sim.fundamental;
 
 const visualizer = new StringVisualizer('stringCanvas', sim);
-const audioEngine = new AudioEngine(sim);
 
 const freqSlider = document.getElementById('freqSlider');
 const freqLabel = document.getElementById('freqLabel');
 const sliderTrack = document.getElementById('sliderTrack');
 const timescaleSlider = document.getElementById('timescaleSlider');
 const timescaleLabel = document.getElementById('timescaleLabel');
-const soundToggle = document.getElementById('soundToggle');
 const normalModeBtn = document.getElementById('normalMode');
 const pianoModeBtn = document.getElementById('pianoMode');
 const sliderContainer = document.querySelector('.slider-container');
 const pianoContainer = document.getElementById('pianoContainer');
 const pianoLabelEl = document.getElementById('pianoLabel');
 const pianoKeys = document.querySelectorAll('.piano .key');
+const tensionToggle = document.getElementById('tensionToggle');
 
 let timescale = 0.2;
 let currentMode = 'normal';
@@ -56,43 +55,14 @@ timescaleSlider.addEventListener('input', (e) => {
     }
 });
 
-soundToggle.addEventListener('click', () => {
-    let isPlaying;
-    if (currentMode === 'piano' && pianoAudioEngine) {
-        isPlaying = pianoAudioEngine.toggle();
-    } else {
-        isPlaying = audioEngine.toggle();
-    }
-    soundToggle.textContent = isPlaying ? 'Sound On' : 'Sound Off';
-    soundToggle.classList.toggle('active', isPlaying);
-
-    if (isPlaying) {
-        timescaleSlider.style.display = 'none';
-        timescaleLabel.textContent = '1.0x';
-    } else {
-        timescaleSlider.style.display = '';
-        if (timescale >= 0.1) {
-            timescaleLabel.textContent = `${timescale.toFixed(1)}x`;
-        } else if (timescale >= 0.01) {
-            timescaleLabel.textContent = `${timescale.toFixed(2)}x`;
-        } else {
-            timescaleLabel.textContent = `${timescale.toFixed(3)}x`;
-        }
-    }
-});
 
 function setMode(mode) {
     currentMode = mode;
 
-    if (audioEngine.isPlaying) {
-        audioEngine.toggle();
-        soundToggle.textContent = 'Sound Off';
-        soundToggle.classList.remove('active');
-    }
-    if (pianoAudioEngine && pianoAudioEngine.isPlaying) {
-        pianoAudioEngine.toggle();
-        soundToggle.textContent = 'Sound Off';
-        soundToggle.classList.remove('active');
+    // Stop piano synth when switching
+    if (pianoSynth && isSynthPlaying) {
+        pianoSynth.triggerRelease();
+        isSynthPlaying = false;
     }
 
     if (mode === 'normal') {
@@ -117,6 +87,10 @@ function setMode(mode) {
 
 normalModeBtn.addEventListener('click', () => setMode('normal'));
 pianoModeBtn.addEventListener('click', () => setMode('piano'));
+
+tensionToggle.addEventListener('change', (e) => {
+    setTensionTuning(e.target.checked);
+});
 
 let isMouseDownOnPiano = false;
 
@@ -179,12 +153,14 @@ document.addEventListener('keyup', (e) => {
 
 function animate() {
     const currentSim = (currentMode === 'piano' && pianoSim) ? pianoSim : sim;
-    const currentAudio = (currentMode === 'piano' && pianoAudioEngine) ? pianoAudioEngine : audioEngine;
 
-    if (!currentAudio.isPlaying) {
+    if (currentMode === 'piano') {
+        currentSim.stepN(100);
+    } else {
         const steps = Math.max(1, Math.round(100 * timescale));
         currentSim.stepN(steps);
     }
+
     visualizer.draw();
     requestAnimationFrame(animate);
 }

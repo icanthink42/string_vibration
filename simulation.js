@@ -35,6 +35,13 @@ class StringSimulation {
         return n * this.fundamental;
     }
 
+    setTension(tension) {
+        this.tension = tension;
+        this.c = Math.sqrt(this.tension / this.linearDensity);
+        this.dt = 0.4 * this.dx / this.c;
+        this.r = Math.pow(this.c * this.dt / this.dx, 2);
+    }
+
     forcingFunction() {
         const f = new Float64Array(this.nx);
         const temporal = Math.sin(2 * Math.PI * this.forcingFreq * this.t);

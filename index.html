@@ -14,8 +14,6 @@
         <div class="timescale-label" id="timescaleLabel">0.2x</div>
     </div>
 
-    <button id="soundToggle" class="sound-toggle">Sound Off</button>
-
     <div class="mode-toggle">
         <button id="normalMode" class="mode-btn active">Normal</button>
         <button id="pianoMode" class="mode-btn">Piano</button>
@@ -28,6 +26,13 @@
     </div>
 
     <div class="piano-container" id="pianoContainer" style="display: none;">
+        <div class="tension-toggle">
+            <label class="toggle-switch">
+                <input type="checkbox" id="tensionToggle">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Equal Temperament</span>
+        </div>
         <div class="piano">
             <div class="key white" data-note="C4" data-key="a"><span>A</span></div>
             <div class="key black" data-note="C#4" data-key="w"><span>W</span></div>
@@ -58,9 +63,9 @@
         <div class="piano-label" id="pianoLabel">Press a key</div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="simulation.js"></script>
     <script src="visualizer.js"></script>
-    <script src="audio.js"></script>
     <script src="piano.js"></script>
     <script src="main.js"></script>
 </body>
