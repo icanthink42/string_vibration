@@ -8,9 +8,10 @@ const baseHarmonic = 17;
 const baseAmplitude = 30;
 const baseWidth = 0.03;
 
-let pianoSim = null;
 let pianoAudioEngine = null;
 let noteHarmonics = {};
+let activeStrings = new Map(); // Map of note -> StringSimulation
+let templateSim = null; // Template simulation for getting fundamental frequency
 
 function noteToFrequency(note) {
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -49,30 +50,57 @@ function playNote(key, pianoLabel) {
     const note = key.dataset.note;
     const info = noteHarmonics[note];
 
-    if (!info || !pianoSim) return;
+    if (!info || !templateSim) return;
 
-    pianoSim.forcingX0 = info.antinodePos * pianoSim.L;
-    pianoSim.forcingFreq = info.actualFreq;
-    pianoSim.forcingWidth = (baseWidth * baseHarmonic / info.harmonic) * pianoSim.L;
-    pianoSim.forcingAmplitude = baseAmplitude * Math.pow(info.harmonic / baseHarmonic, 2);
+    // Don't create duplicate string if note is already playing
+    if (activeStrings.has(note)) return;
 
-    pianoLabel.textContent = `${note} (n=${info.harmonic}) - ${info.actualFreq.toFixed(1)} Hz`;
+    // Create a new string simulation for this note
+    const stringSim = new StringSimulation(pianoStringParams);
+    stringSim.forcingX0 = info.antinodePos * stringSim.L;
+    stringSim.forcingFreq = info.actualFreq;
+    stringSim.forcingWidth = (baseWidth * baseHarmonic / info.harmonic) * stringSim.L;
+    stringSim.forcingAmplitude = baseAmplitude * Math.pow(info.harmonic / baseHarmonic, 2);
+
+    activeStrings.set(note, stringSim);
+
+    updatePianoLabel(pianoLabel);
     key.classList.add('active');
 }
 
 function stopNote(key, pianoLabel) {
+    const note = key.dataset.note;
     key.classList.remove('active');
-    if (pianoSim) {
-        pianoSim.forcingFreq = 0;
+
+    if (activeStrings.has(note)) {
+        activeStrings.delete(note);
+    }
+
+    updatePianoLabel(pianoLabel);
+}
+
+function updatePianoLabel(pianoLabel) {
+    const activeNotes = Array.from(activeStrings.keys());
+    if (activeNotes.length === 0) {
         pianoLabel.textContent = 'Press a key';
+    } else if (activeNotes.length === 1) {
+        const note = activeNotes[0];
+        const info = noteHarmonics[note];
+        pianoLabel.textContent = `${note} (n=${info.harmonic}) - ${info.actualFreq.toFixed(1)} Hz`;
+    } else {
+        pianoLabel.textContent = activeNotes.join(' + ');
     }
 }
 
+function getActiveStrings() {
+    return activeStrings;
+}
+
 function initPianoMode(pianoKeys) {
-    pianoSim = new StringSimulation(pianoStringParams);
-    pianoSim.forcingFreq = 0;
-    pianoAudioEngine = new AudioEngine(pianoSim);
-    noteHarmonics = calculateNoteHarmonics(pianoSim.fundamental, pianoKeys);
+    templateSim = new StringSimulation(pianoStringParams);
+    templateSim.forcingFreq = 0;
+    pianoAudioEngine = new PianoAudioEngine();
+    noteHarmonics = calculateNoteHarmonics(templateSim.fundamental, pianoKeys);
 
     pianoKeys.forEach(key => {
         const note = key.dataset.note;

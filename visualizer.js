@@ -3,6 +3,8 @@ class StringVisualizer {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.sim = simulation;
+        this.multiSimMode = false;
+        this.getActiveStrings = null;
         this.maxDisplacement = 0.001;
         this.isDragging = false;
         this.padding = 60;
@@ -25,6 +27,14 @@ class StringVisualizer {
 
     setSimulation(simulation) {
         this.sim = simulation;
+        this.multiSimMode = false;
+        this.getActiveStrings = null;
+        this.maxDisplacement = 0.001;
+    }
+
+    setMultiSimMode(getActiveStringsFn) {
+        this.multiSimMode = true;
+        this.getActiveStrings = getActiveStringsFn;
         this.maxDisplacement = 0.001;
     }
 
@@ -69,6 +79,84 @@ class StringVisualizer {
 
         ctx.clearRect(0, 0, this.width, this.height);
 
+        // Multi-sim mode: draw each string separately in a vertical stack
+        if (this.multiSimMode && this.getActiveStrings) {
+            const strings = this.getActiveStrings();
+            if (strings.size === 0) {
+                return; // Don't draw anything if no strings are active
+            }
+
+            this.drawMultipleStrings(ctx, strings);
+            return;
+        }
+
+        // Single sim mode (normal mode)
+        this.drawSingleString(ctx);
+    }
+
+    drawMultipleStrings(ctx, strings) {
+        const stringArray = Array.from(strings.entries());
+        const numStrings = stringArray.length;
+        const plotWidth = this.width - this.padding * 2;
+
+        // Calculate vertical spacing
+        const totalHeight = this.height - 200; // Leave room for UI
+        const stringHeight = Math.min(150, totalHeight / numStrings);
+        const startY = (this.height - (numStrings * stringHeight)) / 2;
+
+        // Update max displacement across all strings
+        for (const [note, sim] of stringArray) {
+            const currentMax = sim.maxDisplacement();
+            if (currentMax > this.maxDisplacement) {
+                this.maxDisplacement = currentMax;
+            }
+        }
+
+        const yScale = (stringHeight * 0.4) / this.maxDisplacement;
+
+        // Draw each string
+        stringArray.forEach(([note, sim], index) => {
+            const yCenter = startY + (index + 0.5) * stringHeight;
+            const xScale = plotWidth / sim.L;
+
+            // Draw note label
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = '#888';
+            ctx.textAlign = 'left';
+            ctx.fillText(note, 10, yCenter + 5);
+
+            // Draw the string
+            ctx.strokeStyle = '#4da8da';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+
+            for (let i = 0; i < sim.nx; i++) {
+                const x = this.padding + sim.x[i] * xScale;
+                const y = yCenter - sim.u[i] * yScale;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+
+            ctx.stroke();
+
+            // Draw end points
+            ctx.fillStyle = '#4da8da';
+            ctx.beginPath();
+            ctx.arc(this.padding, yCenter - sim.u[0] * yScale, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(this.padding + plotWidth, yCenter - sim.u[sim.nx - 1] * yScale, 4, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    drawSingleString(ctx) {
         const currentMax = this.sim.maxDisplacement();
         if (currentMax > this.maxDisplacement) {
             this.maxDisplacement = currentMax;
@@ -160,6 +248,12 @@ class StringVisualizer {
         ctx.stroke();
         ctx.setLineDash([]);
 
+        ctx.fillStyle = '#e94560';
+        ctx.beginPath();
+        ctx.arc(forcingX, forcingY, this.isDragging ? 10 : 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw the string
         ctx.strokeStyle = '#4da8da';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
@@ -179,17 +273,13 @@ class StringVisualizer {
 
         ctx.stroke();
 
+        // Draw end points
         ctx.fillStyle = '#4da8da';
         ctx.beginPath();
         ctx.arc(this.padding, yCenter - this.sim.u[0] * yScale, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
         ctx.arc(this.padding + plotWidth, yCenter - this.sim.u[this.sim.nx - 1] * yScale, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#e94560';
-        ctx.beginPath();
-        ctx.arc(forcingX, forcingY, this.isDragging ? 10 : 8, 0, Math.PI * 2);
         ctx.fill();
     }
 }

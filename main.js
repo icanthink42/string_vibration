@@ -107,11 +107,11 @@ function setMode(mode) {
         sliderContainer.style.display = 'none';
         pianoContainer.style.display = 'flex';
 
-        if (!pianoSim) {
+        if (!pianoAudioEngine) {
             initPianoMode(pianoKeys);
         }
 
-        visualizer.setSimulation(pianoSim);
+        visualizer.setMultiSimMode(getActiveStrings);
     }
 }
 
@@ -178,12 +178,19 @@ document.addEventListener('keyup', (e) => {
 });
 
 function animate() {
-    const currentSim = (currentMode === 'piano' && pianoSim) ? pianoSim : sim;
     const currentAudio = (currentMode === 'piano' && pianoAudioEngine) ? pianoAudioEngine : audioEngine;
 
     if (!currentAudio.isPlaying) {
         const steps = Math.max(1, Math.round(100 * timescale));
-        currentSim.stepN(steps);
+
+        if (currentMode === 'piano') {
+            // Step all active piano strings
+            for (const [note, stringSim] of getActiveStrings()) {
+                stringSim.stepN(steps);
+            }
+        } else {
+            sim.stepN(steps);
+        }
     }
     visualizer.draw();
     requestAnimationFrame(animate);
